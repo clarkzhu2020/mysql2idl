@@ -3,6 +3,8 @@
 namespace go {{ .TableName }}
 namespace py {{ .TableName }}
 namespace java {{ .TableName }}
+namespace rs {{ .TableName }}
+
 
 enum Code {
      Success         = 1

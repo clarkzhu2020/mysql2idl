@@ -1,15 +1,15 @@
 # mysql2idl
-## this util tools is for convert mysql table to idl files
+## this Utility  is for convert mysql table to idl files
 ## based on Cloudwego.io hertz
 ### Program by clark zhu (full stack developer)
 ### version 0.1  
 ### issue date : 2023-12-29
 ### email : zhuclark2020@gmail.com
 ### thanks to cloudwego.io tiktok toutiao and all the gophers
-
+### the final idl file could support generate golang,python,java,rust project
 
 You could create idl(thrift format) file with this tools just from any mysql database
-before you use this tools , you must know some useful tools about hertz, thriftgo, cwgo etc. 
+before you use this tools , you must know some useful tools about hertz(golang), volo(rust) ,apache-thrift(java,python), thriftgo, cwgo etc. 
 
 #### ==========================================================
 ### Usage:
@@ -23,7 +23,7 @@ before you use this tools , you must know some useful tools about hertz, thriftg
   -database the database name  
   -idlfile   the filename of idl which will be generated.  
 
-#### How to use
+#### How to use mysql2idl to generate golang hertz project,you also could generate java, python, rust project with apache-thrift and volo
 #### step1:
      Example: your mysql database as below:
      host: 127.0.0.1
