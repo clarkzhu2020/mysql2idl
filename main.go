@@ -110,6 +110,7 @@ func writeidl(data IdlData) {
 			fmt.Println("err on create idl fold:", err)
 		}
 	}
+
 	outputFile := "idl/" + data.TableName + ".thrift"
 	if idltype != "t" {
 		outputFile = "idl/" + data.TableName + ".proto"
@@ -151,6 +152,16 @@ func readdb(d string) {
 		log.Fatal(err)
 	}
 	defer rows.Close()
+
+	// 创建输出文件
+	_, err = os.Stat("idl")
+	if err != nil {
+		err = os.MkdirAll("idl", os.ModePerm)
+		if err != nil {
+			fmt.Println("err on create idl fold:", err)
+		}
+	}
+
 	//清空 idl生成的目录
 	err = clearDirectory("idl")
 	if err != nil {
@@ -170,8 +181,8 @@ func readdb(d string) {
 			log.Fatal(err)
 		}
 
-		fmt.Println("-----------------------")
-		fmt.Println("Table Name:", data.TableName)
+		//fmt.Println("-----------------------")
+		//fmt.Println("Table Name:", data.TableName)
 
 		// 查询表的字段名称和类型
 		rows, err := db.Query("DESCRIBE " + data.TableName)
@@ -181,7 +192,7 @@ func readdb(d string) {
 		defer rows.Close()
 
 		// 遍历查询结果并输出字段名称和类型
-		fmt.Printf("Columns in table %s:\n", data.TableName)
+		//fmt.Printf("Columns in table %s:\n", data.TableName)
 		var line string
 		var i int
 		var j int
@@ -193,7 +204,7 @@ func readdb(d string) {
 				log.Fatal(err)
 			}
 
-			fmt.Printf("Name: %s, Type: %s, isNull:%s \n", columnInfo.Field, columnInfo.Type, columnInfo.Null)
+			//fmt.Printf("Name: %s, Type: %s, isNull:%s \n", columnInfo.Field, columnInfo.Type, columnInfo.Null)
 			i = i + 1
 			columnInfo.Index = i
 			line = strconv.Itoa(int(i)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field
@@ -243,7 +254,7 @@ func readdb(d string) {
 		//set other items
 		data.TableName1 = capitalizeFirstLetter(data.TableName)
 		data.IdItem = "id" //设置默认的ID字段名
-		fmt.Println("\n================================\n", data.TableItem, "\n========================\n", data.NewItems, "\n==============\n", data.UpdateItems, "\n=====================\n")
+
 		writeidl(data)
 	}
 
