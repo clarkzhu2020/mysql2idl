@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -126,6 +127,42 @@ func writeidl(data IdlData) {
 	err = tmpl.Execute(output, data)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	//如果是protobuf文件还要把api.proto复制到 idl下
+	if idltype != "t" {
+		apipath := filepath.Join(filepath.Dir(templateFile), "api.proto")
+		destPath := filepath.Join("idl", "api.proto")
+
+		// 检查源文件是否存在
+		_, err := os.Stat(apipath)
+		if os.IsNotExist(err) {
+			fmt.Println("Source file does not exist:", apipath)
+			return
+		}
+
+		// 打开源文件
+		srcFile, err := os.Open(apipath)
+		if err != nil {
+			fmt.Println("Error opening source file:", err)
+			return
+		}
+		defer srcFile.Close()
+
+		// 创建目标文件
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			fmt.Println("Error creating destination file:", err)
+			return
+		}
+		defer destFile.Close()
+
+		// 复制文件内容
+		_, err = io.Copy(destFile, srcFile)
+		if err != nil {
+			fmt.Println("Error copying file content:", err)
+			return
+		}
 	}
 
 	log.Printf("idl successfully rendered to %s\n", outputFile)
