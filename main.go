@@ -7,12 +7,25 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
 	"unicode"
 )
+
+// 定义命令行
+var user string
+var password string
+var host string
+var port int
+var database string
+var idlfile string
+var project string
+var idltype string
+var help string
 
 // 存储字段名称和类型的结构体
 type ColumnInfo struct {
@@ -38,16 +51,70 @@ type IdlData struct {
 // for create new
 var Newitem []string
 
+// for const var
+// var 	gorootenv string = os.Getenv("GOROOT")
+var gopathenv string = os.Getenv("GOPATH") //GOPATH 路径
+var dsn string                             //数据库的 DSN
+
+//define exec command
+
+var cwserver string = "cwgo server --type HTTP --service $service --module $module --idl ../../idl/$idl"
+
+//var cwdb string = "cwgo model --db_type mysql  --type_tag true --out_dir biz/model --dsn $dsn"
+
 func writeidl(data IdlData) {
+
+	templateFile := "thrift.template"
 	// 读取模板文件
-	templateFile := "idl.template"
+	if idltype != "t" {
+		templateFile = "proto.template"
+	}
+
+	paths := strings.Split(gopathenv, string(os.PathListSeparator))
+	tmpfile := ""
+	tmpok := false
+	_, err := os.Stat(templateFile)
+	if err != nil {
+		for _, path := range paths {
+			tmpfile = filepath.Join(path, "mysql2idl", "thrift.template")
+			if idltype != "t" {
+				tmpfile = filepath.Join(path, "mysql2idl", "proto.template")
+			}
+
+			_, err = os.Stat(tmpfile)
+			if err == nil {
+				templateFile = tmpfile
+				tmpok = true
+				break
+			}
+		}
+	} else {
+		tmpok = true
+	}
+
+	if !tmpok {
+		log.Fatal("template file not found!")
+	}
+
 	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
 		log.Fatal(err)
+		fmt.Println("err on Parse idl file:", err)
 	}
 
 	// 创建输出文件
+	_, err = os.Stat("idl")
+	if err != nil {
+		err = os.MkdirAll("idl", os.ModePerm)
+		if err != nil {
+			fmt.Println("err on create idl fold:", err)
+		}
+	}
 	outputFile := "idl/" + data.TableName + ".thrift"
+	if idltype != "t" {
+		outputFile = "idl/" + data.TableName + ".proto"
+	}
+
 	output, err := os.Create(outputFile)
 	if err != nil {
 		log.Fatal(err)
@@ -65,10 +132,10 @@ func writeidl(data IdlData) {
 }
 
 // 处理数据表
-func readdb(dns string) {
+func readdb(d string) {
 
 	//connect database
-	db, err := sql.Open("mysql", dns)
+	db, err := sql.Open("mysql", d)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,6 +151,14 @@ func readdb(dns string) {
 		log.Fatal(err)
 	}
 	defer rows.Close()
+	//清空 idl生成的目录
+	err = clearDirectory("idl")
+	if err != nil {
+		fmt.Println("Error clearing directory:", err)
+		log.Fatal(err)
+	} else {
+		//fmt.Println("Directory cleared successfully.")
+	}
 
 	// 遍历查询结果并打印表名
 	fmt.Println("Tables in the database:")
@@ -122,13 +197,23 @@ func readdb(dns string) {
 			i = i + 1
 			columnInfo.Index = i
 			line = strconv.Itoa(int(i)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field
+			if idltype != "t" {
+				line = type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(i)) + ";"
+			}
+
 			data.TableItem = data.TableItem + line + "\n"
 
 			//如果不是created,updated,deleted字段，记录在字段表中
 			//为更新数准备数据
 			if strings.ToLower(columnInfo.Field) == "id" {
 				k = k + 1
-				data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+				if idltype != "t" {
+					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(k)) + ";\n"
+
+				} else {
+					data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+				}
+
 			}
 			//为新记录准备数据
 			if strings.ToLower(columnInfo.Field) != "id" && strings.ToLower(columnInfo.Field) != "created_at" && strings.ToLower(columnInfo.Field) != "updated_at" && strings.ToLower(columnInfo.Field) != "deleted_at" {
@@ -138,8 +223,16 @@ func readdb(dns string) {
 					Newitem,
 					columnInfo.Field,
 				)
-				data.NewItems = data.NewItems + strconv.Itoa(int(j)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
-				data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+				if idltype != "t" {
+					data.NewItems = data.NewItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(j)) + ";\n"
+					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  = " + strconv.Itoa(int(k)) + ";\n"
+
+				} else {
+					data.NewItems = data.NewItems + strconv.Itoa(int(j)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+					data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+
+				}
+
 			}
 		}
 
@@ -150,29 +243,25 @@ func readdb(dns string) {
 		//set other items
 		data.TableName1 = capitalizeFirstLetter(data.TableName)
 		data.IdItem = "id" //设置默认的ID字段名
-
+		fmt.Println("\n================================\n", data.TableItem, "\n========================\n", data.NewItems, "\n==============\n", data.UpdateItems, "\n=====================\n")
 		writeidl(data)
 	}
 
 }
 
 func main() {
-	//定义命令行
-	var user string
-	var password string
-	var host string
-	var port int
-	var database string
-	var idlfile string
 
-	var dns string
+	//是否生成项目
 
 	flag.StringVar(&user, "user", "root", "the user name of database")
-	flag.StringVar(&password, "password", "", "the user password of database")
-	flag.StringVar(&host, "host", "localhost", "the host of database")
+	flag.StringVar(&password, "password", "123456", "the user password of database")
+	flag.StringVar(&host, "host", "127.0.0.1", "the host of database")
 	flag.IntVar(&port, "port", 3306, "the port of database")
 	flag.StringVar(&database, "database", "gorm", "the name of database")
 	flag.StringVar(&idlfile, "idl", "gorm.thrift", "the name of idl file")
+	flag.StringVar(&project, "project", "", "the project name for generate,if blank then will not generate project")
+	flag.StringVar(&idltype, "idltype", "t", "the idl type for generate, t=thrift, others=protobuf")
+	flag.StringVar(&help, "help", "", "help message")
 
 	//解析命令行
 	flag.Parse()
@@ -186,13 +275,135 @@ func main() {
 	fmt.Println("database:", database)
 	fmt.Println("idl file:", idlfile)
 
+	if project != "" {
+		fmt.Println("go project will generate into fold projects/", project)
+	} else {
+		fmt.Println("go project will not generated!")
+	}
+
 	//create dns
-	dns = user + ":" + password + "@tcp(" + host + ":" + strconv.Itoa(port) + ")/" + database
+	dsn = user + ":" + password + "@tcp(" + host + ":" + strconv.Itoa(port) + ")/" + database + "?charset=utf8&parseTime=True&loc=Local"
+	//check database & generate idl
+	fmt.Println("=========Step1：Generate IDL files==============")
+	readdb(dsn)
+	//use cwgo generate project
+	if project != "" {
+		fmt.Println("=========Step2：Generate Project files==============")
+		_ = createproject(project)
+	}
 
-	fmt.Println("=======================")
+}
 
-	//check database
-	readdb(dns)
+func createproject(project string) bool {
+	//检查 是否存在项目目录
+	project = strings.TrimSpace(project) //去除空格
+	_, err := os.Stat("projects/" + project)
+	if err != nil {
+		err = os.MkdirAll("projects/"+project, os.ModePerm)
+		if err != nil {
+			fmt.Println("err on create project:", err)
+			return false
+		}
+	} else {
+		fmt.Println("project exist!, if you want to create again, delete the project first!")
+		return false
+	}
+
+	//检查 cwgo是否存在  %GOROOT%/bin目录下
+	cwgocmd := "cwgo"
+	if os.PathSeparator == '\\' {
+		cwgocmd += ".exe"
+	}
+	paths := strings.Split(gopathenv, string(os.PathListSeparator))
+	tmpfile := ""
+	tmpok := false
+	_, err = os.Stat(cwgocmd)
+	if err != nil {
+		for _, path := range paths {
+			tmpfile = filepath.Join(path, "bin", cwgocmd)
+			_, err = os.Stat(tmpfile)
+			if err == nil {
+				cwgocmd = tmpfile
+				tmpok = true
+				break
+			}
+		}
+	} else {
+		tmpok = true
+	}
+
+	if !tmpok {
+		fmt.Println("cwgo command is not installed , please install it as below:\n go install github.com/cloudwego/cwgo@latest")
+		return false
+	} else {
+		fmt.Println("cwgo found!")
+	}
+	//进入项目目录
+	err = os.Chdir(filepath.Join("projects", project))
+	// 用cwgo 生成项目文件
+	currentDir, err := os.Getwd()
+	fmt.Println("Current project path:", currentDir)
+
+	//执行cwgo生成代码
+	genprojectservice(project)
+
+	return true
+}
+
+func genprojectservice(project string) {
+	cmdName := "cwgo"
+	myidl := "users.thrift"
+	idlpath := "../../idl"
+
+	cmdArgs := []string{
+		"server",
+		"--type",
+		"HTTP",
+		"--service",
+		project,
+		"--module",
+		project,
+		"--idl",
+		filepath.Join(idlpath, myidl),
+	}
+
+	dir, err := os.Open(idlpath)
+	if err != nil {
+		fmt.Println("Error opening idl directory:", err)
+		return
+	}
+	defer dir.Close()
+
+	// 读取目录下的所有文件
+	idlInfos, err := dir.Readdir(-1)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return
+	}
+
+	for _, idlInfo := range idlInfos {
+		myidl = idlInfo.Name()
+		cmdArgs = []string{
+			"server",
+			"--type",
+			"HTTP",
+			"--service",
+			project,
+			"--module",
+			project,
+			"--idl",
+			filepath.Join(idlpath, myidl),
+		}
+		fmt.Println(cmdArgs)
+		cmd := exec.Command(cmdName, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Println("Error executing command cwgo:", err)
+			fmt.Println("cwgo args:", cmdArgs)
+			//log.Fatal(err)
+		}
+		fmt.Println(string(output))
+	}
 
 }
 
@@ -222,62 +433,62 @@ func type2idltype(t string) string {
 
 	//整数
 	if strings.Contains(strings.ToLower(t), "tinyint") {
-		return "i8"
+		return toproto("i8")
 	}
 	if strings.Contains(strings.ToLower(t), "smallint") {
-		return "i16"
+		return toproto("i16")
 	}
 	if strings.Contains(strings.ToLower(t), "mediumint") {
-		return "i32"
+		return toproto("i32")
 	}
 	if strings.Contains(strings.ToLower(t), "int") {
 
 		if number > 0 && number <= 8 {
-			return "i8"
+			return toproto("i16")
 		}
 		if number > 8 && number < 16 {
-			return "i16"
+			return toproto("i16")
 		}
 		if number > 16 && number < 32 {
-			return "i32"
+			return toproto("i32")
 		}
 		if number > 32 {
-			return "i64"
+			return toproto("i64")
 		}
 
-		return "i64"
+		return toproto("i64")
 	}
 	if strings.Contains(strings.ToLower(t), "integer") {
 		if number > 0 && number <= 8 {
-			return "i8"
+			return toproto("i16")
 		}
 		if number > 8 && number < 16 {
-			return "i16"
+			return toproto("i16")
 		}
 		if number > 16 && number < 32 {
-			return "i32"
+			return toproto("i32")
 		}
 		if number > 32 {
-			return "i64"
+			return toproto("i64")
 		}
 
-		return "i64"
+		return toproto("i64")
 	}
 	if strings.Contains(strings.ToLower(t), "bigint") {
 		if number > 0 && number <= 8 {
-			return "i8"
+			return toproto("i16")
 		}
 		if number > 8 && number < 16 {
-			return "i16"
+			return toproto("i16")
 		}
 		if number > 16 && number < 32 {
-			return "i32"
+			return toproto("i32")
 		}
 		if number > 32 {
-			return "i64"
+			return toproto("i64")
 		}
 
-		return "i64"
+		return toproto("i64")
 	}
 	//浮点数
 	if strings.Contains(strings.ToLower(t), "float") {
@@ -315,17 +526,60 @@ func type2idltype(t string) string {
 
 	//时间
 	if strings.Contains(strings.ToLower(t), "timestamp") {
-		return "i64"
+		return toproto("i64")
 	}
 	if strings.Contains(strings.ToLower(t), "datetime") {
-		return "i64"
+		return toproto("i64")
 	}
 	if strings.Contains(strings.ToLower(t), "date") {
-		return "i64"
+		return toproto("i64")
 	}
 	if strings.Contains(strings.ToLower(t), "time") {
-		return "i64"
+		return toproto("i64")
 	}
 
 	return "unknown"
+}
+
+// 转换 thrift变量和proto变量
+func toproto(str string) string {
+	if idltype != "t" {
+		switch str {
+		case "i16":
+			return "int32"
+		case "i32":
+			return "int32"
+		case "i64":
+			return "int64"
+		case "binary":
+			return "bytes"
+		case "struct":
+			return "message"
+		default:
+			return "unknown"
+		}
+	}
+	return str
+}
+
+// 删除目录 dirPath下的所有文件和子目录
+func clearDirectory(dirPath string) error {
+	// 获取目录下的所有文件和子目录
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return err
+	}
+
+	// 遍历目录项
+	for _, entry := range entries {
+		entryPath := filepath.Join(dirPath, entry.Name())
+
+		// 删除文件或目录
+		err := os.RemoveAll(entryPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

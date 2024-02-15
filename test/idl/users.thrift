@@ -3,6 +3,8 @@
 namespace go users
 namespace py users
 namespace java users
+namespace rs users
+
 
 enum Code {
      Success         = 1
@@ -16,7 +18,7 @@ struct Users {
 
 1:i32 id
 2:string name
-3:i8 gender
+3:i16 gender
 4:i64 age
 5:string introduce
 6:i64 created_at
@@ -30,7 +32,7 @@ struct Users {
 struct CreateUsersRequest{
 
 1:string name  (api.body="name", api.form="name")
-2:i8 gender  (api.body="gender", api.form="gender")
+2:i16 gender  (api.body="gender", api.form="gender")
 3:i64 age  (api.body="age", api.form="age")
 4:string introduce  (api.body="introduce", api.form="introduce")
 
@@ -71,7 +73,7 @@ struct UpdateUsersRequest{
 
 1:i32 id  (api.body="id", api.form="id")
 2:string name  (api.body="name", api.form="name")
-3:i8 gender  (api.body="gender", api.form="gender")
+3:i16 gender  (api.body="gender", api.form="gender")
 4:i64 age  (api.body="age", api.form="age")
 5:string introduce  (api.body="introduce", api.form="introduce")
 
@@ -85,8 +87,8 @@ struct UpdateUsersResponse{
 
 //Define Service Routine
 service UsersService {
-   UpdateUsersResponse UpdateUsers(1:UpdateUsersRequest req)(api.post="/v1/users/update/:id")
-   DeleteUsersResponse DeleteUsers(1:DeleteUsersRequest req)(api.post="/v1/users/delete/:id")
-   QueryUsersResponse  QueryUsers(1: QueryUsersRequest req)(api.post="/v1/users/query/")
    CreateUsersResponse CreateUsers(1:CreateUsersRequest req)(api.post="/v1/users/create/")
+   QueryUsersResponse  QueryUsers(1: QueryUsersRequest req)(api.get="/v1/users/query/")
+   DeleteUsersResponse DeleteUsers(1:DeleteUsersRequest req)(api.delete="/v1/users/delete/:id")
+   UpdateUsersResponse UpdateUsers(1:UpdateUsersRequest req)(api.put="/v1/users/update/:id")
 }

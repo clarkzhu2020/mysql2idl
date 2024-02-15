@@ -10,41 +10,25 @@ import (
 	users "test/biz/model/users"
 )
 
-// UpdateUsers .
-// @router /v1/users/update/:id [POST]
-func UpdateUsers(ctx context.Context, c *app.RequestContext) {
+// Create .
+// @router /api/users/create [POST]
+func Create(ctx context.Context, c *app.RequestContext) {
 	var err error
-	var req users.UpdateUsersRequest
+	var req users.CreateUsersRequest
 	err = c.BindAndValidate(&req)
 	if err != nil {
 		c.String(consts.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp := new(users.UpdateUsersResponse)
+	resp := new(users.CreateUsersResponse)
 
 	c.JSON(consts.StatusOK, resp)
 }
 
-// DeleteUsers .
-// @router /v1/users/delete/:id [POST]
-func DeleteUsers(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req users.DeleteUsersRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
-		return
-	}
-
-	resp := new(users.DeleteUsersResponse)
-
-	c.JSON(consts.StatusOK, resp)
-}
-
-// QueryUsers .
-// @router /v1/users/query/ [POST]
-func QueryUsers(ctx context.Context, c *app.RequestContext) {
+// Query .
+// @router /api/users/query [GET]
+func Query(ctx context.Context, c *app.RequestContext) {
 	var err error
 	var req users.QueryUsersRequest
 	err = c.BindAndValidate(&req)
@@ -58,18 +42,34 @@ func QueryUsers(ctx context.Context, c *app.RequestContext) {
 	c.JSON(consts.StatusOK, resp)
 }
 
-// CreateUsers .
-// @router /v1/users/create/ [POST]
-func CreateUsers(ctx context.Context, c *app.RequestContext) {
+// Delete .
+// @router /api/users/delete [DELETE]
+func Delete(ctx context.Context, c *app.RequestContext) {
 	var err error
-	var req users.CreateUsersRequest
+	var req users.DeleteUsersRequest
 	err = c.BindAndValidate(&req)
 	if err != nil {
 		c.String(consts.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp := new(users.CreateUsersResponse)
+	resp := new(users.DeleteUsersResponse)
+
+	c.JSON(consts.StatusOK, resp)
+}
+
+// Update .
+// @router /api/users/update [PUT]
+func Update(ctx context.Context, c *app.RequestContext) {
+	var err error
+	var req users.UpdateUsersRequest
+	err = c.BindAndValidate(&req)
+	if err != nil {
+		c.String(consts.StatusBadRequest, err.Error())
+		return
+	}
+
+	resp := new(users.UpdateUsersResponse)
 
 	c.JSON(consts.StatusOK, resp)
 }

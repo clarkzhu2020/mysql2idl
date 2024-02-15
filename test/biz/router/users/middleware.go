@@ -11,7 +11,7 @@ func rootMw() []app.HandlerFunc {
 	return nil
 }
 
-func _v1Mw() []app.HandlerFunc {
+func _apiMw() []app.HandlerFunc {
 	// your code...
 	return nil
 }
@@ -26,17 +26,7 @@ func _createMw() []app.HandlerFunc {
 	return nil
 }
 
-func _createusersMw() []app.HandlerFunc {
-	// your code...
-	return nil
-}
-
 func _deleteMw() []app.HandlerFunc {
-	// your code...
-	return nil
-}
-
-func _deleteusersMw() []app.HandlerFunc {
 	// your code...
 	return nil
 }
@@ -46,17 +36,7 @@ func _queryMw() []app.HandlerFunc {
 	return nil
 }
 
-func _queryusersMw() []app.HandlerFunc {
-	// your code...
-	return nil
-}
-
 func _updateMw() []app.HandlerFunc {
-	// your code...
-	return nil
-}
-
-func _updateusersMw() []app.HandlerFunc {
 	// your code...
 	return nil
 }
