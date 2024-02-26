@@ -35,20 +35,20 @@ struct Create{{ .TableName1 }}Response{
 //Query_service
 struct Query{{ .TableName1 }}Request{
    1: optional string Keyword (api.body="keyword", api.form="keyword",api.query="keyword")
-   2: i64 page (api.body="page", api.form="page",api.query="page",api.vd="$ > 0")
-   3: i64 page_size (api.body="page_size", api.form="page_size",api.query="page_size",api.vd="($ > 0 || $ <= 100)")
+   2: i32 page (api.body="page", api.form="page",api.query="page",api.vd="$ > 0")
+   3: i32 page_size (api.body="page_size", api.form="page_size",api.query="page_size",api.vd="($ > 0 || $ <= 100)")
 }
 
 struct Query{{ .TableName1 }}Response{
    1: Code code
    2: string msg
    3: list<{{ .TableName1 | html }}> {{ .TableName }}s
-   4: i64 totoal
+   4: i32 totoal
 }
 
 //Delete_service
 struct Delete{{ .TableName1 }}Request{
-   1: i64    {{ .IdItem }}   (api.path="{{ .IdItem }}",api.vd="$>0")
+   1: i32    {{ .IdItem }}   (api.path="{{ .IdItem }}",api.vd="$>0")
 }
 
 struct Delete{{ .TableName1 }}Response{

@@ -331,6 +331,7 @@ func main() {
 
 	//create dns
 	dsn = user + ":" + password + "@tcp(" + host + ":" + strconv.Itoa(port) + ")/" + database + "?charset=utf8&parseTime=True&loc=Local"
+	fmt.Println("dsn=", dsn)
 	//check database & generate idl
 	fmt.Println("=========Step1：Generate IDL files==============")
 	readdb(dsn)
