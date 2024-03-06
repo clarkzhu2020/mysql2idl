@@ -505,7 +505,7 @@ func type2idltype(t string) string {
 			return toproto("i64")
 		}
 
-		return toproto("i64")
+		return toproto("i32")
 	}
 	if strings.Contains(strings.ToLower(t), "integer") {
 		if number > 0 && number <= 8 {
@@ -521,7 +521,7 @@ func type2idltype(t string) string {
 			return toproto("i64")
 		}
 
-		return toproto("i64")
+		return toproto("i32")
 	}
 	if strings.Contains(strings.ToLower(t), "bigint") {
 		if number > 0 && number <= 8 {
@@ -537,7 +537,7 @@ func type2idltype(t string) string {
 			return toproto("i64")
 		}
 
-		return toproto("i64")
+		return toproto("i32")
 	}
 	//浮点数
 	if strings.Contains(strings.ToLower(t), "float") {
