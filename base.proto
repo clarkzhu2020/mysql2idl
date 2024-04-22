@@ -1,0 +1,40 @@
+/*
+ * Copyright 2023 FormulaGo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+
+syntax = "proto3";
+
+package base;
+
+option go_package = "/base";
+
+// base message
+message Empty {
+}
+
+message IDReq {
+  uint64 id = 1;
+}
+
+enum StatusCode {
+  STATUS_CODE_UNSPECIFIED = 0;
+  STATUS_CODE_SUCCESS     = 1;
+  STATUS_CODE_FAILURE     = 2;
+}
+
+message BaseResp {
+  StatusCode status_code = 1;
+  string     msg         = 2;
+}
+
+message PageInfoReq {
+  uint64 page      = 1;
+  uint64 page_size = 2;
+}
+
+message StatusCodeReq {
+  uint64 id     = 1;
+  uint64 status = 2;
+}
