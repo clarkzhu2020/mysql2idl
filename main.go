@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -15,6 +13,8 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // 定义命令行
@@ -26,6 +26,9 @@ var database string
 var idlfile string
 var project string
 var idltype string
+var camelCase bool
+var ignoreTablesStr string
+var ignoreTables []string
 var help string
 
 // 存储字段名称和类型的结构体
@@ -131,42 +134,34 @@ func writeidl(data IdlData) {
 
 	//如果是protobuf文件还要把api.proto复制到 idl下
 	if idltype != "t" {
-		apipath := filepath.Join(filepath.Dir(templateFile), "api.proto")
-		destPath := filepath.Join("idl", "api.proto")
-
-		// 检查源文件是否存在
-		_, err := os.Stat(apipath)
-		if os.IsNotExist(err) {
-			fmt.Println("Source file does not exist:", apipath)
-			return
-		}
-
-		// 打开源文件
-		srcFile, err := os.Open(apipath)
-		if err != nil {
-			fmt.Println("Error opening source file:", err)
-			return
-		}
-		defer srcFile.Close()
-
-		// 创建目标文件
-		destFile, err := os.Create(destPath)
-		if err != nil {
-			fmt.Println("Error creating destination file:", err)
-			return
-		}
-		defer destFile.Close()
-
-		// 复制文件内容
-		_, err = io.Copy(destFile, srcFile)
-		if err != nil {
-			fmt.Println("Error copying file content:", err)
-			return
-		}
+		copyProtobufInclude()
 	}
 
 	log.Printf("idl successfully rendered to %s\n", outputFile)
 
+}
+
+func copyProtobufInclude() {
+	files := []string{"api.proto", "base.proto"}
+
+	err := os.MkdirAll("idl/include/", 0755)
+	if err != nil {
+		fmt.Println("Error creating directory idl/include", err)
+		return
+	}
+
+	for _, file := range files {
+		in, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Println("Error copying file:", file, err)
+			return
+		}
+		err = os.WriteFile("idl/include/"+file, in, 0644)
+		if err != nil {
+			fmt.Println("Error copying file:", file, err)
+			return
+		}
+	}
 }
 
 // 处理数据表
@@ -218,11 +213,22 @@ func readdb(d string) {
 			log.Fatal(err)
 		}
 
+		skipTable := false
+		for _, ignoreTbl := range ignoreTables {
+			if data.TableName == ignoreTbl {
+				skipTable = true
+				break
+			}
+		}
+		if skipTable {
+			continue
+		}
+
 		//fmt.Println("-----------------------")
 		//fmt.Println("Table Name:", data.TableName)
 
 		// 查询表的字段名称和类型
-		rows, err := db.Query("DESCRIBE " + data.TableName)
+		rows, err := db.Query("DESCRIBE `" + data.TableName + "`")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -249,14 +255,14 @@ func readdb(d string) {
 				line = type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(i)) + ";"
 			}
 
-			data.TableItem = data.TableItem + line + "\n"
+			data.TableItem = data.TableItem + line + "\n  "
 
 			//如果不是created,updated,deleted字段，记录在字段表中
 			//为更新数准备数据
 			if strings.ToLower(columnInfo.Field) == "id" {
 				k = k + 1
 				if idltype != "t" {
-					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(k)) + ";\n"
+					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(k)) + ";\n  "
 
 				} else {
 					data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
@@ -272,8 +278,8 @@ func readdb(d string) {
 					columnInfo.Field,
 				)
 				if idltype != "t" {
-					data.NewItems = data.NewItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(j)) + ";\n"
-					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  = " + strconv.Itoa(int(k)) + ";\n"
+					data.NewItems = data.NewItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(j)) + ";\n  "
+					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  = " + strconv.Itoa(int(k)) + ";\n  "
 
 				} else {
 					data.NewItems = data.NewItems + strconv.Itoa(int(j)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
@@ -289,8 +295,14 @@ func readdb(d string) {
 			log.Fatal(err)
 		}
 		//set other items
-		data.TableName1 = capitalizeFirstLetter(data.TableName)
+
+		if camelCase {
+			data.TableName1 = makeCamelCase(data.TableName)
+		} else {
+			data.TableName1 = capitalizeFirstLetter(data.TableName)
+		}
 		data.IdItem = "id" //设置默认的ID字段名
+		data.TableItem = strings.TrimSpace(data.TableItem)
 
 		writeidl(data)
 	}
@@ -309,6 +321,8 @@ func main() {
 	flag.StringVar(&idlfile, "idl", "gorm.thrift", "the name of idl file")
 	flag.StringVar(&project, "project", "", "the project name for generate,if blank then will not generate project")
 	flag.StringVar(&idltype, "idltype", "t", "the idl type for generate, t=thrift, others=protobuf")
+	flag.StringVar(&ignoreTablesStr, "ignoretables", "", "tables to ignore when generating idl files. separate with a space.")
+	flag.BoolVar(&camelCase, "camelcase", false, "flags whether to use camel or snake case for the database name")
 	flag.StringVar(&help, "help", "", "help message")
 
 	//解析命令行
@@ -322,6 +336,8 @@ func main() {
 	fmt.Println("port:", port)
 	fmt.Println("database:", database)
 	fmt.Println("idl file:", idlfile)
+	fmt.Println("ignoring tables: ", ignoreTablesStr)
+	fmt.Println("using camel case", camelCase)
 
 	if project != "" {
 		fmt.Println("go project will generate into fold projects/", project)
@@ -329,15 +345,21 @@ func main() {
 		fmt.Println("go project will not generated!")
 	}
 
+	// clean up table names so they properly match
+	ignoreTables = strings.Split(ignoreTablesStr, " ")
+	for i, tbl := range ignoreTables {
+		ignoreTables[i] = strings.ToLower(strings.TrimSpace(tbl))
+	}
+
 	//create dns
 	dsn = user + ":" + password + "@tcp(" + host + ":" + strconv.Itoa(port) + ")/" + database + "?charset=utf8&parseTime=True&loc=Local"
 	fmt.Println("dsn=", dsn)
 	//check database & generate idl
-	fmt.Println("=========Step1：Generate IDL files==============")
+	fmt.Println("=========Step1: Generate IDL files==============")
 	readdb(dsn)
 	//use cwgo generate project
 	if project != "" {
-		fmt.Println("=========Step2：Generate Project files==============")
+		fmt.Println("=========Step2: Generate Project files==============")
 		_ = createproject(project)
 	}
 
@@ -463,6 +485,18 @@ func capitalizeFirstLetter(s string) string {
 	r := []rune(s)
 	r[0] = unicode.ToTitle(r[0])
 	return string(r)
+}
+
+func makeCamelCase(s string) string {
+	if s == "" {
+		return ""
+	}
+	spl := strings.Split(s, "_")
+	for i, word := range spl {
+		word = capitalizeFirstLetter(word)
+		spl[i] = word
+	}
+	return strings.Join(spl, "")
 }
 
 func type2idltype(t string) string {

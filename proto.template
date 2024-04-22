@@ -4,124 +4,85 @@ syntax = "proto3";
 // {{ .TableName }} service
 package {{ .TableName }};
 
-//biz/model
+import "include/api.proto";
+import "include/base.proto";
+
+// biz/model
 option go_package = "/{{ .TableName }}";
-
-import "api.proto";
-
-//=========base data==========
-//blank message
-message Empty {}
-
-//general ID
-message IDReq {
-  uint32 ID = 1;
-}
-
-//general Error Code
-enum ErrCode {
-  Success = 0;
-  Fail = 1;
-}
-
-//general Resp
-message BaseResp {
-  ErrCode errCode = 1;
-  string errMsg = 2;
-}
-
-//general page data
-message PageInfoReq {
-  uint32 page = 1;
-  uint32 pageSize = 2;
-}
-
-//general status
-message StatusCode {
-  uint32 ID = 1;
-  uint32 status = 2;
-}
 
 //==========API request Define below==========================
 
-//table items
+// table items
 message {{ .TableName1 }} {
-
-{{ .TableItem }}
-
+  {{ .TableItem }}
 }
 
-//repeated data for query
-message Data{
-    int32 page=1;
-    int32 totalItems =2;
-    int32 totalPage  =3;
-    repeated  {{ .TableName1 }}  data = 4;
-    }
-
-//Create_service
-message Create{{ .TableName1 }}Request{
-
-{{ .NewItems }}
-
+// repeated data for query
+message Data {
+  int32 page        = 1;
+  int32 total_items = 2;
+  int32 total_page  = 3;
+  repeated {{ .TableName1 }} data = 4;
 }
 
-message Create{{ .TableName1 }}Response{
-    ErrCode errCode = 1;     //0 or 1, failed or succeed
-    string msg =2;
-    {{ .TableName1 }} data=3;
+// Create_service
+message Create{{ .TableName1 }}Request {
+  {{ .NewItems }}
 }
 
-//Query_service
-message Query{{ .TableName1 }}Request{
-    string keyWord =1;
-    PageInfoReq pageInfo=2;
+message Create{{ .TableName1 }}Response {
+  base.StatusCode status_code = 1;  // 0 or 1, failed or succeed
+  string          msg         = 2;
+  {{ .TableName1 }} data = 3;
 }
 
-message Query{{ .TableName1 }}Response{
-    ErrCode errCode = 1;     //0 or 1, failed or succeed
-    string msg =2;
-    Data data =3;
+// Query_service
+message Query{{ .TableName1 }}Request {
+  string           key_word  = 1;
+  base.PageInfoReq page_info = 2;
 }
 
-//Delete_service
-message Delete{{ .TableName1 }}Request{
-    int32 {{ .IdItem }}  =1;
+message Query{{ .TableName1 }}Response {
+  base.StatusCode status_code = 1;  // 0 or 1, failed or succeed
+  string          msg         = 2;
+  Data            data        = 3;
 }
 
-message Delete{{ .TableName1 }}Response{
-    ErrCode errCode = 1;     //0 or 1, failed or succeed
-    string msg =2;
+// Delete_service
+message Delete{{ .TableName1 }}Request {
+  int32 {{ .IdItem }} = 1;
 }
 
-//Update_service
-message Update{{ .TableName1 }}Request{
-
-{{ .UpdateItems }}
-
+message Delete{{ .TableName1 }}Response {
+  base.StatusCode status_code = 1;  // 0 or 1, failed or succeed
+  string          msg         = 2;
 }
 
-message Update{{ .TableName1 }}Response{
-    ErrCode errCode = 1;     //0 or 1, failed or succeed
-    string msg =2;
+// Update_service
+message Update{{ .TableName1 }}Request {
+  {{ .UpdateItems }}
 }
 
-//Define Service Routine
+message Update{{ .TableName1 }}Response {
+  base.StatusCode status_code = 1;  // 0 or 1, failed or succeed
+  string          msg         = 2;
+}
+
+// Define Service Routine
 service {{ .TableName1 }}Service {
-
-  rpc Create(Create{{ .TableName1 }}Request) returns(Create{{ .TableName1 }}Response){
-   option (api.post) = "/api/{{.TableName}}/create";
+  rpc Create(Create{{ .TableName1 }}Request) returns (Create{{ .TableName1 }}Response) {
+    option (api.post) = "/api/{{.TableName}}/create";
   }
 
-  rpc Query(Query{{ .TableName1 }}Request) returns(Query{{ .TableName1 }}Response){
-   option (api.get) = "/api/{{.TableName}}/query";
+  rpc Query(Query{{ .TableName1}}Request) returns (Query{{ .TableName1 }}Response) {
+    option (api.get) = "/api/{{.TableName}}/query";
   }
 
-  rpc Delete(Delete{{ .TableName1 }}Request) returns(Delete{{ .TableName1 }}Response){
-   option (api.delete) = "/api/{{.TableName}}/delete";
+  rpc Delete(Delete{{ .TableName1 }}Request) returns (Delete{{ .TableName1 }}Response) {
+    option (api.delete) = "/api/{{.TableName}}/delete";
   }
 
-  rpc Update(Update{{ .TableName1 }}Request) returns(Update{{ .TableName1 }}Response){
-   option (api.put) = "/api/{{.TableName}}/update";
+  rpc Update(Update{{ .TableName1 }}Request) returns (Update{{ .TableName1 }}Response) {
+    option (api.put) = "/api/{{.TableName}}/update";
   }
 }
