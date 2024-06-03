@@ -23,6 +23,7 @@ var password string
 var host string
 var port int
 var database string
+var table string
 var idlfile string
 var project string
 var idltype string
@@ -204,9 +205,9 @@ func readdb(d string) {
 	if err != nil {
 		fmt.Println("Error clearing directory:", err)
 		log.Fatal(err)
-	} else {
-		//fmt.Println("Directory cleared successfully.")
-	}
+	} //else {
+	//	fmt.Println("Directory cleared successfully.")
+	//}
 
 	// 遍历查询结果并打印表名
 	fmt.Println("Tables in the database:")
@@ -217,84 +218,86 @@ func readdb(d string) {
 		if err := rows.Scan(&data.TableName); err != nil {
 			log.Fatal(err)
 		}
+		// 指定表的话只生成指定的表
+		if table == "" || (table != "" && table == data.TableName) {
 
-		//fmt.Println("-----------------------")
-		//fmt.Println("Table Name:", data.TableName)
+			//fmt.Println("-----------------------")
+			//fmt.Println("Table Name:", data.TableName)
 
-		// 查询表的字段名称和类型
-		rows, err := db.Query("DESCRIBE " + data.TableName)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer rows.Close()
-
-		// 遍历查询结果并输出字段名称和类型
-		//fmt.Printf("Columns in table %s:\n", data.TableName)
-		var line string
-		var i int
-		var j int
-		var k int
-
-		for rows.Next() {
-			var columnInfo ColumnInfo
-			if err := rows.Scan(&columnInfo.Field, &columnInfo.Type, &columnInfo.Null, &columnInfo.Key, &columnInfo.Default, &columnInfo.Extra); err != nil {
+			// 查询表的字段名称和类型
+			rows, err := db.Query("DESCRIBE " + data.TableName)
+			if err != nil {
 				log.Fatal(err)
 			}
+			defer rows.Close()
 
-			//fmt.Printf("Name: %s, Type: %s, isNull:%s \n", columnInfo.Field, columnInfo.Type, columnInfo.Null)
-			i = i + 1
-			columnInfo.Index = i
-			line = strconv.Itoa(int(i)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field
-			if idltype != "t" {
-				line = type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(i)) + ";"
-			}
+			// 遍历查询结果并输出字段名称和类型
+			//fmt.Printf("Columns in table %s:\n", data.TableName)
+			var line string
+			var i int
+			var j int
+			var k int
 
-			data.TableItem = data.TableItem + line + "\n"
-
-			//如果不是created,updated,deleted字段，记录在字段表中
-			//为更新数准备数据
-			if strings.ToLower(columnInfo.Field) == "id" {
-				k = k + 1
-				if idltype != "t" {
-					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(k)) + ";\n"
-
-				} else {
-					data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+			for rows.Next() {
+				var columnInfo ColumnInfo
+				if err := rows.Scan(&columnInfo.Field, &columnInfo.Type, &columnInfo.Null, &columnInfo.Key, &columnInfo.Default, &columnInfo.Extra); err != nil {
+					log.Fatal(err)
 				}
 
-			}
-			//为新记录准备数据
-			if strings.ToLower(columnInfo.Field) != "id" && strings.ToLower(columnInfo.Field) != "created_at" && strings.ToLower(columnInfo.Field) != "updated_at" && strings.ToLower(columnInfo.Field) != "deleted_at" {
-				j = j + 1
-				k = k + 1
-				Newitem = append(
-					Newitem,
-					columnInfo.Field,
-				)
+				//fmt.Printf("Name: %s, Type: %s, isNull:%s \n", columnInfo.Field, columnInfo.Type, columnInfo.Null)
+				i = i + 1
+				columnInfo.Index = i
+				line = strconv.Itoa(int(i)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field
 				if idltype != "t" {
-					data.NewItems = data.NewItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(j)) + ";\n"
-					data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  = " + strconv.Itoa(int(k)) + ";\n"
-
-				} else {
-					data.NewItems = data.NewItems + strconv.Itoa(int(j)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
-					data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
-
+					line = type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(i)) + ";"
 				}
 
+				data.TableItem = data.TableItem + line + "\n"
+
+				//如果不是created,updated,deleted字段，记录在字段表中
+				//为更新数准备数据
+				if strings.ToLower(columnInfo.Field) == "id" {
+					k = k + 1
+					if idltype != "t" {
+						data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(k)) + ";\n"
+
+					} else {
+						data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+					}
+
+				}
+				//为新记录准备数据
+				if strings.ToLower(columnInfo.Field) != "id" && strings.ToLower(columnInfo.Field) != "created_at" && strings.ToLower(columnInfo.Field) != "updated_at" && strings.ToLower(columnInfo.Field) != "deleted_at" {
+					j = j + 1
+					k = k + 1
+					Newitem = append(
+						Newitem,
+						columnInfo.Field,
+					)
+					if idltype != "t" {
+						data.NewItems = data.NewItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + " = " + strconv.Itoa(int(j)) + ";\n"
+						data.UpdateItems = data.UpdateItems + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  = " + strconv.Itoa(int(k)) + ";\n"
+
+					} else {
+						data.NewItems = data.NewItems + strconv.Itoa(int(j)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+						data.UpdateItems = data.UpdateItems + strconv.Itoa(int(k)) + ":" + type2idltype(columnInfo.Type) + " " + columnInfo.Field + "  (api.body=\"" + columnInfo.Field + "\", api.form=\"" + columnInfo.Field + "\")" + "\n"
+
+					}
+
+				}
 			}
-		}
 
-		// 检查遍历过程中是否出错
-		if err := rows.Err(); err != nil {
-			log.Fatal(err)
-		}
-		//set other items
-		data.TableName1 = capitalizeFirstLetter(data.TableName)
-		data.IdItem = "id" //设置默认的ID字段名
+			// 检查遍历过程中是否出错
+			if err := rows.Err(); err != nil {
+				log.Fatal(err)
+			}
+			//set other items
+			data.TableName1 = capitalizeFirstLetter(data.TableName)
+			data.IdItem = "id" //设置默认的ID字段名
 
-		writeidl(data)
+			writeidl(data)
+		}
 	}
-
 }
 
 func main() {
@@ -306,6 +309,7 @@ func main() {
 	flag.StringVar(&host, "host", "127.0.0.1", "the host of database")
 	flag.IntVar(&port, "port", 3306, "the port of database")
 	flag.StringVar(&database, "database", "gorm", "the name of database")
+	flag.StringVar(&table, "table", "user", "the name of table")
 	flag.StringVar(&idlfile, "idl", "gorm.thrift", "the name of idl file")
 	flag.StringVar(&project, "project", "", "the project name for generate,if blank then will not generate project")
 	flag.StringVar(&idltype, "idltype", "t", "the idl type for generate, t=thrift, others=protobuf")
@@ -321,6 +325,9 @@ func main() {
 	fmt.Println("host:", host)
 	fmt.Println("port:", port)
 	fmt.Println("database:", database)
+	if table != "" {
+		fmt.Println("generate one table:", table)
+	}
 	fmt.Println("idl file:", idlfile)
 
 	if project != "" {
