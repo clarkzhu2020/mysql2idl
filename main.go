@@ -183,7 +183,7 @@ func readdb(d string) {
 	if err := db.Ping(); err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println("Connected to database successfully.")
 	// 查询所有表
 	rows, err := db.Query("SHOW TABLES")
 	if err != nil {
@@ -210,7 +210,7 @@ func readdb(d string) {
 	//}
 
 	// 遍历查询结果并打印表名
-	fmt.Println("Tables in the database:")
+	//fmt.Println("Tables in the database:")
 
 	for rows.Next() {
 		var data IdlData
@@ -219,10 +219,16 @@ func readdb(d string) {
 			log.Fatal(err)
 		}
 		// 指定表的话只生成指定的表
+		if table == "" {
+			fmt.Println("table is null or blank")
+		}
+
+		fmt.Println("table =  ", table)
+
 		if table == "" || (table != "" && table == data.TableName) {
 
-			//fmt.Println("-----------------------")
-			//fmt.Println("Table Name:", data.TableName)
+			fmt.Println("-----------------------")
+			fmt.Println("Table Name:", data.TableName)
 
 			// 查询表的字段名称和类型
 			rows, err := db.Query("DESCRIBE " + data.TableName)
@@ -309,7 +315,7 @@ func main() {
 	flag.StringVar(&host, "host", "127.0.0.1", "the host of database")
 	flag.IntVar(&port, "port", 3306, "the port of database")
 	flag.StringVar(&database, "database", "gorm", "the name of database")
-	flag.StringVar(&table, "table", "user", "the name of table")
+	flag.StringVar(&table, "table", "", "the name of table if blank means all")
 	flag.StringVar(&idlfile, "idl", "gorm.thrift", "the name of idl file")
 	flag.StringVar(&project, "project", "", "the project name for generate,if blank then will not generate project")
 	flag.StringVar(&idltype, "idltype", "t", "the idl type for generate, t=thrift, others=protobuf")
