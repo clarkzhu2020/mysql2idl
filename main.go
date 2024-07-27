@@ -219,11 +219,6 @@ func readdb(d string) {
 			log.Fatal(err)
 		}
 		// 指定表的话只生成指定的表
-		if table == "" {
-			fmt.Println("table is null or blank")
-		}
-
-		fmt.Println("table =  ", table)
 
 		if table == "" || (table != "" && table == data.TableName) {
 
